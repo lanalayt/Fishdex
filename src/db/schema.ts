@@ -41,7 +41,8 @@ export const catches = sqliteTable('catches', {
   flyPattern: text('fly_pattern').notNull(),
   flySize: text('fly_size'),
   flyColor: text('fly_color'),
-  count: integer('count').default(0),
+  heat: text('heat'), // 'hot' | 'mild' | 'cold' — how well the fly produced
+  count: integer('count').default(0), // legacy: fish count on older trips
   notes: text('notes'),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),

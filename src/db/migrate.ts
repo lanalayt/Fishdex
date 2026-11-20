@@ -51,6 +51,7 @@ export function runMigrations() {
       fly_pattern TEXT NOT NULL,
       fly_size TEXT,
       fly_color TEXT,
+      heat TEXT,
       count INTEGER DEFAULT 0,
       notes TEXT,
       created_at TEXT NOT NULL,
@@ -100,4 +101,5 @@ export function runMigrations() {
   try { expo.execSync(`ALTER TABLE trips ADD COLUMN latitude TEXT;`); } catch {}
   try { expo.execSync(`ALTER TABLE trips ADD COLUMN longitude TEXT;`); } catch {}
   try { expo.execSync(`ALTER TABLE catches ADD COLUMN fly_color TEXT;`); } catch {}
+  try { expo.execSync(`ALTER TABLE catches ADD COLUMN heat TEXT;`); } catch {}
 }

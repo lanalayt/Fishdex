@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTripStore, type TripWithDetails } from '@/src/stores/tripStore';
 import { useRiverStore } from '@/src/stores/riverStore';
 import { formatDateWithDay } from '@/src/utils/date';
+import { HEAT_LEVELS, effectiveHeat } from '@/src/utils/heat';
 import { colors, spacing, radius, fontSize, fontWeight } from '@/constants/Colors';
 import { addSatelliteToggle } from '@/src/utils/mapHelper';
 
@@ -77,14 +78,19 @@ export default function TripDetailScreen() {
               <Text style={styles.tagText}>{trip.flowCfs} CFS</Text>
             </View>
           ) : null}
-          {trip.catchCount > 0 ? (
-            <View style={[styles.tag, styles.tagAccent]}>
-              <Ionicons name="fish-outline" size={14} color={colors.accent} />
-              <Text style={[styles.tagText, { color: colors.accent }]}>
-                {trip.catchCount} fish
-              </Text>
-            </View>
-          ) : null}
+          {(() => {
+            const hotCount = trip.catches.filter((c) => effectiveHeat(c) === 'hot').length;
+            if (hotCount === 0) return null;
+            const hot = HEAT_LEVELS[0];
+            return (
+              <View style={[styles.tag, { backgroundColor: hot.color + '1A' }]}>
+                <Ionicons name={hot.icon as any} size={14} color={hot.color} />
+                <Text style={[styles.tagText, { color: hot.color }]}>
+                  {hotCount} hot {hotCount === 1 ? 'fly' : 'flies'}
+                </Text>
+              </View>
+            );
+          })()}
           {(trip as any).leaderLength ? (
             <View style={styles.tag}>
               <Text style={styles.tagText}>Leader: {(trip as any).leaderLength}</Text>
@@ -116,35 +122,44 @@ export default function TripDetailScreen() {
         </View>
       ) : null}
 
-      {/* Catches */}
+      {/* Flies — grouped by how they did */}
       {trip.catches.length > 0 ? (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Catches</Text>
-          {trip.catches.map((c, i) => (
-            <View key={c.id} style={styles.detailCard}>
-              <View style={styles.detailHeader}>
-                <Text style={styles.flyPattern}>{c.flyPattern}</Text>
-                {(c.count ?? 0) > 0 ? (
-                  <View style={styles.countBadge}>
-                    <Text style={styles.countText}>{c.count}</Text>
-                  </View>
-                ) : null}
-              </View>
-              {(c.flySize || (c as any).flyColor) ? (
-                <View style={styles.detailMeta}>
-                  {c.flySize ? (
-                    <Text style={styles.metaText}>Size: #{c.flySize}</Text>
-                  ) : null}
-                  {(c as any).flyColor ? (
-                    <Text style={styles.metaText}>Color: {(c as any).flyColor}</Text>
-                  ) : null}
+          <Text style={styles.sectionTitle}>Flies</Text>
+          {HEAT_LEVELS.map((level) => {
+            const items = trip.catches.filter((c) => effectiveHeat(c) === level.key);
+            if (items.length === 0) return null;
+            return (
+              <View key={level.key} style={styles.heatGroup}>
+                <View style={styles.heatGroupHeader}>
+                  <Ionicons name={level.icon as any} size={16} color={level.color} />
+                  <Text style={[styles.heatGroupTitle, { color: level.color }]}>
+                    {level.sectionTitle}
+                  </Text>
                 </View>
-              ) : null}
-              {c.notes ? (
-                <Text style={styles.detailNotes}>{c.notes}</Text>
-              ) : null}
-            </View>
-          ))}
+                {items.map((c) => (
+                  <View key={c.id} style={[styles.detailCard, { borderLeftWidth: 3, borderLeftColor: level.color }]}>
+                    <View style={styles.detailHeader}>
+                      <Text style={styles.flyPattern}>{c.flyPattern}</Text>
+                    </View>
+                    {(c.flySize || (c as any).flyColor) ? (
+                      <View style={styles.detailMeta}>
+                        {c.flySize ? (
+                          <Text style={styles.metaText}>Size: #{c.flySize}</Text>
+                        ) : null}
+                        {(c as any).flyColor ? (
+                          <Text style={styles.metaText}>Color: {(c as any).flyColor}</Text>
+                        ) : null}
+                      </View>
+                    ) : null}
+                    {c.notes ? (
+                      <Text style={styles.detailNotes}>{c.notes}</Text>
+                    ) : null}
+                  </View>
+                ))}
+              </View>
+            );
+          })}
         </View>
       ) : null}
 
@@ -220,7 +235,7 @@ export default function TripDetailScreen() {
                 </head><body><div id="map"></div><script>
                 var map = L.map('map').setView([${lat}, ${lng}], 14);
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution:'© OpenStreetMap'}).addTo(map);
-                L.marker([${lat}, ${lng}]).addTo(map).bindPopup('<b>${trip.riverName.replace(/'/g, "\\'")}</b><br>${trip.date}${trip.catchCount > 0 ? `<br>${trip.catchCount} fish` : ''}').openPopup();
+                L.marker([${lat}, ${lng}]).addTo(map).bindPopup('<b>${trip.riverName.replace(/'/g, "\\'")}</b><br>${trip.date}${(() => { const h = trip.catches.filter((c) => effectiveHeat(c) === 'hot').length; return h > 0 ? `<br>🔥 ${h} hot` : ''; })()}').openPopup();
                 </script></body></html>`;
               return <iframe srcDoc={addSatelliteToggle(mapHtml)} style={{ flex: 1, border: 'none', width: '100%', height: '100%' } as any} />;
             })() : (() => {
@@ -343,6 +358,19 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     color: colors.text,
     lineHeight: 24,
+  },
+  heatGroup: {
+    marginBottom: spacing.md,
+  },
+  heatGroupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs + 2,
+    marginBottom: spacing.sm,
+  },
+  heatGroupTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
   },
   detailCard: {
     backgroundColor: colors.surface,

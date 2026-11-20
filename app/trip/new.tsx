@@ -21,6 +21,7 @@ import { FlyPatternPicker } from '@/src/components/FlyPatternPicker';
 import { MapPicker } from '@/src/components/MapPicker';
 import { todayISO } from '@/src/utils/date';
 import { searchRiversDebounced, type RiverResult } from '@/src/utils/riverSearch';
+import { HEAT_LEVELS, effectiveHeat, type Heat } from '@/src/utils/heat';
 import { colors, spacing, radius, fontSize, fontWeight, shadow } from '@/constants/Colors';
 
 const WEATHER_OPTIONS = ['Sunny', 'Partly Cloudy', 'Cloudy', 'Rainy', 'Snowy', 'Windy'];
@@ -98,6 +99,7 @@ export default function NewTripScreen() {
             flyPattern: c.flyPattern,
             flySize: c.flySize ?? '',
             flyColor: (c as any).flyColor ?? '',
+            heat: effectiveHeat(c),
             count: c.count ?? 0,
             notes: c.notes ?? '',
           }))
@@ -113,10 +115,10 @@ export default function NewTripScreen() {
     }
   }, [isEdit, params.edit]);
 
-  const addCatch = () => {
+  const addCatch = (heat: Heat) => {
     setCatches([
       ...catches,
-      { flyPattern: '', flySize: '', flyColor: '', count: 0, notes: '' },
+      { flyPattern: '', flySize: '', flyColor: '', heat, notes: '' },
     ]);
   };
 
@@ -405,79 +407,129 @@ export default function NewTripScreen() {
           multiline
         />
 
-        {/* ── Catches ── */}
+        {/* ── Flies (sorted by how they did) ── */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Catches</Text>
+          <Text style={styles.sectionTitle}>Flies</Text>
           <Text style={styles.sectionCount}>
-            {catches.length} {catches.length === 1 ? 'entry' : 'entries'}
+            {catches.length} {catches.length === 1 ? 'fly' : 'flies'}
           </Text>
         </View>
+        <Text style={styles.sectionSubtitle}>
+          No counting — just drop each fly into how it fished.
+        </Text>
 
-        {catches.map((c, i) => (
-          <View key={i} style={styles.catchCard}>
-            <View style={styles.catchHeader}>
-              <Text style={styles.catchNumber}>Catch #{i + 1}</Text>
-              <Pressable onPress={() => removeCatch(i)} hitSlop={8}>
-                <Ionicons name="trash-outline" size={18} color={colors.error} />
+        {HEAT_LEVELS.map((level) => {
+          const items = catches
+            .map((c, i) => ({ c, i }))
+            .filter(({ c }) => effectiveHeat(c) === level.key);
+
+          return (
+            <View key={level.key} style={styles.heatSection}>
+              <View style={styles.heatSectionHeader}>
+                <Ionicons name={level.icon as any} size={18} color={level.color} />
+                <Text style={[styles.heatSectionTitle, { color: level.color }]}>
+                  {level.sectionTitle}
+                </Text>
+                <View style={[styles.heatCountBadge, { backgroundColor: level.color + '22' }]}>
+                  <Text style={[styles.heatCountText, { color: level.color }]}>{items.length}</Text>
+                </View>
+              </View>
+              <Text style={styles.heatHint}>{level.hint}</Text>
+
+              {items.map(({ c, i }) => (
+                <View key={i} style={[styles.catchCard, { borderColor: level.color + '55' }]}>
+                  <View style={styles.catchHeader}>
+                    <Text style={[styles.catchNumber, { color: level.color }]}>
+                      {level.emoji} {level.label} Fly
+                    </Text>
+                    <Pressable onPress={() => removeCatch(i)} hitSlop={8}>
+                      <Ionicons name="trash-outline" size={18} color={colors.error} />
+                    </Pressable>
+                  </View>
+
+                  <View style={styles.fieldContainer}>
+                    <Text style={styles.label}>FLY PATTERN</Text>
+                    <FlyPatternPicker
+                      value={c.flyPattern}
+                      onChange={(v) => updateCatch(i, 'flyPattern', v)}
+                      onFlySelected={(fly) => {
+                        if (!c.flySize && fly.commonSizes.length > 0) {
+                          updateCatch(i, 'flySize', fly.commonSizes[Math.floor(fly.commonSizes.length / 2)]);
+                        }
+                      }}
+                    />
+                  </View>
+
+                  <View style={styles.row}>
+                    <View style={styles.halfField}>
+                      <FormField
+                        label="Fly Size"
+                        optional
+                        value={c.flySize ?? ''}
+                        onChangeText={(v) => updateCatch(i, 'flySize', v)}
+                        placeholder="#16"
+                      />
+                    </View>
+                    <View style={styles.halfField}>
+                      <FormField
+                        label="Color"
+                        optional
+                        value={c.flyColor ?? ''}
+                        onChangeText={(v) => updateCatch(i, 'flyColor', v)}
+                        placeholder="e.g., Olive"
+                      />
+                    </View>
+                  </View>
+
+                  <FormField
+                    label="Notes"
+                    optional
+                    value={c.notes ?? ''}
+                    onChangeText={(v) => updateCatch(i, 'notes', v)}
+                    placeholder="Notes about this fly..."
+                  />
+
+                  {/* Move this fly to a different bucket */}
+                  <Text style={styles.moveLabel}>HOW DID IT DO?</Text>
+                  <View style={styles.heatToggleRow}>
+                    {HEAT_LEVELS.map((lvl) => {
+                      const active = effectiveHeat(c) === lvl.key;
+                      return (
+                        <Pressable
+                          key={lvl.key}
+                          style={[
+                            styles.heatToggle,
+                            active && { backgroundColor: lvl.color + '22', borderColor: lvl.color },
+                          ]}
+                          onPress={() => updateCatch(i, 'heat', lvl.key)}
+                        >
+                          <Text
+                            style={[
+                              styles.heatToggleText,
+                              active && { color: lvl.color, fontWeight: fontWeight.semibold },
+                            ]}
+                          >
+                            {lvl.emoji} {lvl.label}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              ))}
+
+              <Pressable
+                style={[styles.addButton, { borderColor: level.color }]}
+                onPress={() => addCatch(level.key)}
+              >
+                <Ionicons name="add-circle-outline" size={20} color={level.color} />
+                <Text style={[styles.addButtonText, { color: level.color }]}>
+                  Add {level.label} Fly
+                </Text>
               </Pressable>
             </View>
-
-            <View style={styles.fieldContainer}>
-              <Text style={styles.label}>FLY PATTERN</Text>
-              <FlyPatternPicker
-                value={c.flyPattern}
-                onChange={(v) => updateCatch(i, 'flyPattern', v)}
-                onFlySelected={(fly) => {
-                  if (!c.flySize && fly.commonSizes.length > 0) {
-                    updateCatch(i, 'flySize', fly.commonSizes[Math.floor(fly.commonSizes.length / 2)]);
-                  }
-                }}
-              />
-            </View>
-
-            <View style={styles.row}>
-              <View style={styles.halfField}>
-                <FormField
-                  label="Fly Size"
-                  optional
-                  value={c.flySize ?? ''}
-                  onChangeText={(v) => updateCatch(i, 'flySize', v)}
-                  placeholder="#16"
-                />
-              </View>
-              <View style={styles.halfField}>
-                <FormField
-                  label="Count"
-                  value={(c.count ?? 0).toString()}
-                  onChangeText={(v) => updateCatch(i, 'count', parseInt(v, 10) || 0)}
-                  keyboardType="numeric"
-                  placeholder="0"
-                />
-              </View>
-            </View>
-
-            <FormField
-              label="Color"
-              optional
-              value={c.flyColor ?? ''}
-              onChangeText={(v) => updateCatch(i, 'flyColor', v)}
-              placeholder="e.g., Olive, Red/Brown, Black/White"
-            />
-
-            <FormField
-              label="Notes"
-              optional
-              value={c.notes ?? ''}
-              onChangeText={(v) => updateCatch(i, 'notes', v)}
-              placeholder="Notes about this catch..."
-            />
-          </View>
-        ))}
-
-        <Pressable style={styles.addButton} onPress={addCatch}>
-          <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
-          <Text style={styles.addButtonText}>Add Catch</Text>
-        </Pressable>
+          );
+        })}
 
         {/* ── Fly Shop Advice ── */}
         <View style={styles.sectionHeader}>
@@ -878,6 +930,66 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     color: colors.primary,
     fontWeight: fontWeight.semibold,
+  },
+  sectionSubtitle: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    marginTop: -spacing.sm,
+    marginBottom: spacing.md,
+  },
+  heatSection: {
+    marginBottom: spacing.lg,
+  },
+  heatSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: 2,
+  },
+  heatSectionTitle: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+  },
+  heatCountBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 1,
+    borderRadius: radius.full,
+    minWidth: 22,
+    alignItems: 'center',
+  },
+  heatCountText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+  },
+  heatHint: {
+    fontSize: fontSize.xs,
+    color: colors.textTertiary,
+    marginBottom: spacing.sm,
+  },
+  moveLabel: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: colors.textTertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: spacing.xs,
+  },
+  heatToggleRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  heatToggle: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceLight,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  heatToggleText: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
   },
   bottomSpacer: {
     height: 120,

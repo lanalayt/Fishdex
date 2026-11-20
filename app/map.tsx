@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTripStore } from '@/src/stores/tripStore';
 import { useRiverStore } from '@/src/stores/riverStore';
+import { hotFlyCount } from '@/src/utils/heat';
 import { colors, spacing, fontSize, fontWeight } from '@/constants/Colors';
 import { addSatelliteToggle } from '@/src/utils/mapHelper';
 
@@ -27,7 +28,7 @@ export default function MapScreen() {
     })
     .map((r) => {
       const riverTrips = trips.filter((t) => t.riverId === r.id);
-      const totalCatch = riverTrips.reduce((s, t) => s + t.catchCount, 0);
+      const totalCatch = riverTrips.reduce((s, t) => s + hotFlyCount(t.catches), 0);
       const location = [(r as any).region, (r as any).state].filter(Boolean).join(', ');
       return {
         id: r.id,
@@ -72,7 +73,7 @@ export default function MapScreen() {
           ${pins.map((p) => `
             L.marker([${p.lat}, ${p.lng}])
               .addTo(map)
-              .bindPopup('<b>${p.riverName.replace(/'/g, "\\'")}</b>${p.location ? `<br>${p.location}` : ''}${p.tripCount > 0 ? `<br>${p.tripCount} trips` : ''}${p.catchCount > 0 ? ` · ${p.catchCount} fish` : ''}<br><button onclick="window.parent.postMessage(JSON.stringify({type:\\'goToRiver\\',id:\\'${p.id}\\'}),\\'*\\')" style="margin-top:6px;padding:6px 12px;background:#0EA5E9;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:bold;width:100%">View River</button>');
+              .bindPopup('<b>${p.riverName.replace(/'/g, "\\'")}</b>${p.location ? `<br>${p.location}` : ''}${p.tripCount > 0 ? `<br>${p.tripCount} trips` : ''}${p.catchCount > 0 ? ` · 🔥 ${p.catchCount} hot` : ''}<br><button onclick="window.parent.postMessage(JSON.stringify({type:\\'goToRiver\\',id:\\'${p.id}\\'}),\\'*\\')" style="margin-top:6px;padding:6px 12px;background:#0EA5E9;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:bold;width:100%">View River</button>');
           `).join('')}
         </script>
       </body>
@@ -134,7 +135,7 @@ export default function MapScreen() {
             key={p.id}
             coordinate={{ latitude: p.lat, longitude: p.lng }}
             title={p.riverName}
-            description={`${p.location || ''}${p.tripCount > 0 ? ` · ${p.tripCount} trips` : ''}${p.catchCount > 0 ? ` · ${p.catchCount} fish` : ''}`}
+            description={`${p.location || ''}${p.tripCount > 0 ? ` · ${p.tripCount} trips` : ''}${p.catchCount > 0 ? ` · 🔥 ${p.catchCount} hot` : ''}`}
             onCalloutPress={() => router.push(`/river/${p.id}`)}
           />
         ))}

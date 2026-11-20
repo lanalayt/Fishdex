@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radius, fontSize, fontWeight, shadow } from '@/constants/Colors';
 import { formatDate, daysAgo } from '@/src/utils/date';
+import { HEAT_LEVELS, effectiveHeat, heatScore } from '@/src/utils/heat';
 import type { TripWithDetails } from '@/src/stores/tripStore';
 
 interface Props {
@@ -11,9 +12,13 @@ interface Props {
 }
 
 export function TripCard({ trip, onPress }: Props) {
-  const topFlies = trip.catches
-    .filter((c) => (c.count ?? 0) > 0)
-    .sort((a, b) => (b.count ?? 0) - (a.count ?? 0))
+  const hotColor = HEAT_LEVELS[0].color;
+  const hotIcon = HEAT_LEVELS[0].icon;
+  const hotCount = trip.catches.filter((c) => effectiveHeat(c) === 'hot').length;
+  // Show the best-producing flies first, skipping cold ones.
+  const topFlies = [...trip.catches]
+    .sort((a, b) => heatScore(b) - heatScore(a))
+    .filter((c) => effectiveHeat(c) !== 'cold' && c.flyPattern)
     .slice(0, 3);
 
   return (
@@ -52,11 +57,11 @@ export function TripCard({ trip, onPress }: Props) {
             <Text style={styles.tagText}>{trip.flowCfs} CFS</Text>
           </View>
         ) : null}
-        {trip.catchCount > 0 ? (
-          <View style={[styles.tag, styles.tagAccent]}>
-            <Ionicons name="fish-outline" size={12} color={colors.accent} />
-            <Text style={[styles.tagText, styles.tagAccentText]}>
-              {trip.catchCount} {trip.catchCount === 1 ? 'fish' : 'fish'}
+        {hotCount > 0 ? (
+          <View style={[styles.tag, { backgroundColor: hotColor + '1A' }]}>
+            <Ionicons name={hotIcon as any} size={12} color={hotColor} />
+            <Text style={[styles.tagText, { color: hotColor, fontWeight: fontWeight.medium }]}>
+              {hotCount} hot {hotCount === 1 ? 'fly' : 'flies'}
             </Text>
           </View>
         ) : null}

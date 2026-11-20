@@ -10,6 +10,7 @@ import { DatePicker } from '@/src/components/DatePicker';
 import { MapPicker } from '@/src/components/MapPicker';
 import { todayISO } from '@/src/utils/date';
 import { formatDate } from '@/src/utils/date';
+import { hotFlyCount, effectiveHeat } from '@/src/utils/heat';
 import { supabase } from '@/src/supabase/client';
 import { SUPABASE_ENABLED } from '@/src/supabase/config';
 import { getCurrentWeather, get7DayForecast, weatherIcon, type WeatherData, type DayForecast } from '@/src/utils/weather';
@@ -306,16 +307,18 @@ export default function RiverDetailScreen() {
     );
   }
 
-  const totalFish = riverTrips.reduce((sum, t) => sum + t.catchCount, 0);
+  const totalHot = riverTrips.reduce((sum, t) => sum + hotFlyCount(t.catches), 0);
   const topFlies = (() => {
     const flyMap = new Map<string, number>();
     riverTrips.forEach((t) =>
       t.catches.forEach((c) => {
         const key = c.flyPattern;
-        flyMap.set(key, (flyMap.get(key) ?? 0) + (c.count ?? 0));
+        if (!key) return;
+        if (effectiveHeat(c) === 'hot') flyMap.set(key, (flyMap.get(key) ?? 0) + 1);
       })
     );
     return [...flyMap.entries()]
+      .filter(([, hot]) => hot > 0)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5);
   })();
@@ -527,8 +530,8 @@ export default function RiverDetailScreen() {
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{totalFish}</Text>
-                <Text style={styles.statLabel}>Fish</Text>
+                <Text style={styles.statValue}>{totalHot}</Text>
+                <Text style={styles.statLabel}>Hot Flies</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
@@ -545,7 +548,7 @@ export default function RiverDetailScreen() {
                   <View key={fly} style={styles.flyRow}>
                     <Text style={styles.flyRank}>#{i + 1}</Text>
                     <Text style={styles.flyName}>{fly}</Text>
-                    <Text style={styles.flyCount}>{count} fish</Text>
+                    <Text style={styles.flyCount}>🔥 {count}</Text>
                   </View>
                 ))}
               </View>

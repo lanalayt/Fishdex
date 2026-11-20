@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useRiverStore } from '@/src/stores/riverStore';
 import { useTripStore } from '@/src/stores/tripStore';
+import { hotFlyCount } from '@/src/utils/heat';
 import { EmptyState } from '@/src/components/EmptyState';
 import { pickRiverPhoto, uploadRiverPhoto, saveRiverImageUrl } from '@/src/utils/riverPhoto';
 import { colors, spacing, radius, fontSize, fontWeight, shadow } from '@/constants/Colors';
@@ -94,9 +95,10 @@ export default function RiversScreen() {
   const getTripCount = (riverId: string) =>
     trips.filter((t) => t.riverId === riverId).length;
 
+  // "Hot flies" logged at this river (replaces fish totals).
   const getTotalCatch = (riverId: string) =>
     trips.filter((t) => t.riverId === riverId)
-      .reduce((sum, t) => sum + t.catchCount, 0);
+      .reduce((sum, t) => sum + hotFlyCount(t.catches), 0);
 
   // Group rivers by state, then by name
   const groupedByState = useMemo(() => {
@@ -230,7 +232,7 @@ export default function RiversScreen() {
           <Text style={styles.locationName}>{label}</Text>
           <Text style={styles.locationStats}>
             {loc.tripCount} {loc.tripCount === 1 ? 'trip' : 'trips'}
-            {loc.totalCatch > 0 ? ` · ${loc.totalCatch} fish` : ''}
+            {loc.totalCatch > 0 ? ` · 🔥 ${loc.totalCatch} hot` : ''}
           </Text>
         </View>
         <Ionicons name="chevron-forward" size={14} color={colors.textTertiary} />
@@ -268,7 +270,7 @@ export default function RiversScreen() {
               const hasMultiple = item.locations.length > 1;
               const isExpanded = expandedRiver === item.name + stateGroup.state;
               const totalTrips = item.locations.reduce((s, l) => s + l.tripCount, 0);
-              const totalFish = item.locations.reduce((s, l) => s + l.totalCatch, 0);
+              const totalHot = item.locations.reduce((s, l) => s + l.totalCatch, 0);
 
               if (!hasMultiple) {
                 const loc = item.locations[0];
@@ -288,7 +290,7 @@ export default function RiversScreen() {
                       {loc.city ? <Text style={styles.riverLocation}>{loc.city}</Text> : null}
                       <Text style={styles.riverStats}>
                         {loc.tripCount} {loc.tripCount === 1 ? 'trip' : 'trips'}
-                        {loc.totalCatch > 0 ? ` · ${loc.totalCatch} fish` : ''}
+                        {loc.totalCatch > 0 ? ` · 🔥 ${loc.totalCatch} hot` : ''}
                       </Text>
                     </View>
                     <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
@@ -311,7 +313,7 @@ export default function RiversScreen() {
                       <Text style={styles.riverName}>{item.name}</Text>
                       <Text style={styles.riverStats}>
                         {item.locations.length} locations · {totalTrips} trips
-                        {totalFish > 0 ? ` · ${totalFish} fish` : ''}
+                        {totalHot > 0 ? ` · 🔥 ${totalHot} hot` : ''}
                       </Text>
                     </View>
                     <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textTertiary} />

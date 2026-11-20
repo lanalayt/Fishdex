@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useRiverStore } from '@/src/stores/riverStore';
 import { useTripStore } from '@/src/stores/tripStore';
+import { hotFlyCount } from '@/src/utils/heat';
 import { colors, spacing, radius, fontSize, fontWeight, shadow } from '@/constants/Colors';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -21,7 +22,6 @@ export default function HomeScreen() {
   }, []);
 
   const uniqueRivers = new Set(rivers.map((r) => r.name.toLowerCase())).size;
-  const totalFish = trips.reduce((s, t) => s + t.catchCount, 0);
   const totalFlies = new Set(trips.flatMap(t => t.catches.map(c => (c.flyPattern || '').toLowerCase()).filter(Boolean))).size;
 
   const categories = [
@@ -121,7 +121,10 @@ export default function HomeScreen() {
                 <Text style={styles.recentRiver}>{trip.riverName}</Text>
                 <Text style={styles.recentDetail}>
                   {trip.date}
-                  {trip.catchCount > 0 ? ` · ${trip.catchCount} fish` : ''}
+                  {(() => {
+                    const hot = hotFlyCount(trip.catches);
+                    return hot > 0 ? ` · 🔥 ${hot} hot` : '';
+                  })()}
                   {(trip as any).weather ? ` · ${(trip as any).weather}` : ''}
                 </Text>
               </View>

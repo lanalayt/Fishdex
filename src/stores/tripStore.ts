@@ -26,6 +26,7 @@ export interface CatchInput {
   flyColor?: string;
   leaderLength?: string;
   tippetSize?: string;
+  heat?: 'hot' | 'mild' | 'cold';
   count?: number;
   notes?: string;
 }
@@ -116,6 +117,7 @@ function mapSupabaseTrip(t: any, riverName: string, riverCity: string | null, ri
       flyPattern: c.fly_pattern,
       flySize: c.fly_size,
       flyColor: c.fly_color,
+      heat: c.heat,
       count: c.count,
       notes: c.notes,
       createdAt: c.created_at,
@@ -158,7 +160,7 @@ function createTripLocal(tripId: string, data: TripInput, timestamp: string) {
     db.insert(catches).values({
       id: generateId(), tripId, flyPattern: c.flyPattern,
       flySize: c.flySize || null, flyColor: c.flyColor || null,
-      count: c.count ?? 0, notes: c.notes || null,
+      heat: c.heat || null, count: c.count ?? 0, notes: c.notes || null,
       createdAt: timestamp, updatedAt: timestamp,
     }).run();
   }
@@ -278,6 +280,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
           fly_pattern: c.flyPattern,
           fly_size: c.flySize || null,
           fly_color: c.flyColor || null,
+          heat: c.heat || null,
           count: c.count ?? 0,
           notes: c.notes || null,
         });
@@ -336,7 +339,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
             await sb().from('catches').insert({
               id: generateId(), trip_id: id,
               fly_pattern: c.flyPattern, fly_size: c.flySize || null,
-              fly_color: c.flyColor || null, count: c.count ?? 0, notes: c.notes || null,
+              fly_color: c.flyColor || null, heat: c.heat || null, count: c.count ?? 0, notes: c.notes || null,
             });
           }
 
@@ -372,7 +375,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
         db.insert(catches).values({
           id: generateId(), tripId: id, flyPattern: c.flyPattern,
           flySize: c.flySize || null, flyColor: c.flyColor || null,
-          count: c.count ?? 0, notes: c.notes || null,
+          heat: c.heat || null, count: c.count ?? 0, notes: c.notes || null,
           createdAt: timestamp, updatedAt: timestamp,
         }).run();
       }

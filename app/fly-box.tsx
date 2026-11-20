@@ -8,17 +8,20 @@ import { useAuthStore } from '@/src/stores/authStore';
 import { supabase } from '@/src/supabase/client';
 import { SUPABASE_ENABLED } from '@/src/supabase/config';
 import { FLY_PATTERNS, categoryColors, categoryLabels, type FlyCategory } from '@/src/data/flyPatterns';
+import { HEAT_LEVELS, effectiveHeat } from '@/src/utils/heat';
 import { colors, spacing, radius, fontSize, fontWeight } from '@/constants/Colors';
 
 interface FlyStats {
   name: string;
   category: FlyCategory;
-  totalFish: number;
+  hotCount: number;
+  mildCount: number;
+  coldCount: number;
   tripCount: number;
   rivers: string[];
   sizes: string[];
   flyColors: string[];
-  fishPerTrip: number;
+  hotRate: number; // share of times this fly ran hot (0..1)
 }
 
 export default function FlyBoxScreen() {
@@ -26,7 +29,7 @@ export default function FlyBoxScreen() {
   const { rivers, loadRivers } = useRiverStore();
   const { user } = useAuthStore();
   const [filterCategory, setFilterCategory] = useState<FlyCategory | 'all'>('all');
-  const [sortBy, setSortBy] = useState<'fish' | 'trips' | 'rate'>('fish');
+  const [sortBy, setSortBy] = useState<'hot' | 'trips' | 'rate'>('hot');
   const [selectedUser, setSelectedUser] = useState('all');
   const [userNames, setUserNames] = useState<Map<string, string>>(new Map());
   const [shopNeeds, setShopNeeds] = useState('');
@@ -125,17 +128,22 @@ export default function FlyBoxScreen() {
           map.set(key, {
             name,
             category: builtIn?.category || 'other',
-            totalFish: 0,
+            hotCount: 0,
+            mildCount: 0,
+            coldCount: 0,
             tripCount: 0,
             rivers: [],
             sizes: [],
             flyColors: [],
-            fishPerTrip: 0,
+            hotRate: 0,
           });
         }
 
         const stat = map.get(key)!;
-        stat.totalFish += c.count ?? 0;
+        const h = effectiveHeat(c);
+        if (h === 'hot') stat.hotCount += 1;
+        else if (h === 'mild') stat.mildCount += 1;
+        else stat.coldCount += 1;
         stat.tripCount += 1;
         if (trip.riverName && !stat.rivers.includes(trip.riverName)) {
           stat.rivers.push(trip.riverName);
@@ -150,9 +158,9 @@ export default function FlyBoxScreen() {
       }
     }
 
-    // Calculate fish per trip
+    // Calculate hot rate (share of logs where the fly ran hot)
     for (const stat of map.values()) {
-      stat.fishPerTrip = stat.tripCount > 0 ? Math.round((stat.totalFish / stat.tripCount) * 10) / 10 : 0;
+      stat.hotRate = stat.tripCount > 0 ? Math.round((stat.hotCount / stat.tripCount) * 100) : 0;
     }
 
     let result = [...map.values()];
@@ -163,15 +171,15 @@ export default function FlyBoxScreen() {
     }
 
     // Sort
-    if (sortBy === 'fish') result.sort((a, b) => b.totalFish - a.totalFish);
+    if (sortBy === 'hot') result.sort((a, b) => b.hotCount - a.hotCount || b.hotRate - a.hotRate);
     else if (sortBy === 'trips') result.sort((a, b) => b.tripCount - a.tripCount);
-    else result.sort((a, b) => b.fishPerTrip - a.fishPerTrip);
+    else result.sort((a, b) => b.hotRate - a.hotRate || b.hotCount - a.hotCount);
 
     return result;
   }, [filteredTrips, filterCategory, sortBy]);
 
   const totalFlies = flyStats.length;
-  const totalFishCaught = flyStats.reduce((s, f) => s + f.totalFish, 0);
+  const totalHotFlies = flyStats.filter((f) => f.hotCount > 0).length;
 
   const categories: (FlyCategory | 'all')[] = ['all', 'dry', 'nymph', 'streamer', 'emerger', 'terrestrial', 'wet', 'midge', 'other'];
 
@@ -249,8 +257,8 @@ export default function FlyBoxScreen() {
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statBox}>
-                <Text style={styles.statValue}>{totalFishCaught}</Text>
-                <Text style={styles.statLabel}>Total Fish</Text>
+                <Text style={styles.statValue}>{totalHotFlies}</Text>
+                <Text style={styles.statLabel}>Hot Flies</Text>
               </View>
             </View>
 
@@ -281,9 +289,9 @@ export default function FlyBoxScreen() {
             <View style={styles.sortRow}>
               <Text style={styles.sortLabel}>Sort by:</Text>
               {[
-                { key: 'fish', label: 'Most Fish' },
+                { key: 'hot', label: 'Most Hot' },
                 { key: 'trips', label: 'Most Used' },
-                { key: 'rate', label: 'Best Rate' },
+                { key: 'rate', label: 'Best Hot Rate' },
               ].map((s) => (
                 <Pressable key={s.key} style={[styles.sortChip, sortBy === s.key && styles.sortChipSelected]} onPress={() => setSortBy(s.key as any)}>
                   <Text style={[styles.sortChipText, sortBy === s.key && styles.sortChipTextSelected]}>{s.label}</Text>
@@ -309,16 +317,16 @@ export default function FlyBoxScreen() {
               </View>
               <View style={styles.flyStatsRow}>
                 <View style={styles.flyStat}>
-                  <Text style={styles.flyStatValue}>{item.totalFish}</Text>
-                  <Text style={styles.flyStatLabel}>fish</Text>
+                  <Text style={[styles.flyStatValue, { color: HEAT_LEVELS[0].color }]}>{item.hotCount}</Text>
+                  <Text style={styles.flyStatLabel}>hot</Text>
                 </View>
                 <View style={styles.flyStat}>
                   <Text style={styles.flyStatValue}>{item.tripCount}</Text>
-                  <Text style={styles.flyStatLabel}>trips</Text>
+                  <Text style={styles.flyStatLabel}>used</Text>
                 </View>
                 <View style={styles.flyStat}>
-                  <Text style={styles.flyStatValue}>{item.fishPerTrip}</Text>
-                  <Text style={styles.flyStatLabel}>per trip</Text>
+                  <Text style={styles.flyStatValue}>{item.hotRate}%</Text>
+                  <Text style={styles.flyStatLabel}>hot rate</Text>
                 </View>
               </View>
               {item.sizes.length > 0 ? (

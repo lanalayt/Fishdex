@@ -6,6 +6,7 @@ import { useTripStore } from '@/src/stores/tripStore';
 import { useRiverStore } from '@/src/stores/riverStore';
 import { useAuthStore } from '@/src/stores/authStore';
 import { useGroupStore } from '@/src/stores/groupStore';
+import { hotFlyCount } from '@/src/utils/heat';
 import { SUPABASE_ENABLED } from '@/src/supabase/config';
 import { sync } from '@/src/sync/engine';
 import { colors, spacing, radius, fontSize, fontWeight } from '@/constants/Colors';
@@ -29,7 +30,7 @@ export default function ProfileScreen() {
     }
   }, [user]);
 
-  const totalFish = trips.reduce((sum, t) => sum + t.catchCount, 0);
+  const totalHot = trips.reduce((sum, t) => sum + hotFlyCount(t.catches), 0);
   const uniqueFlies = new Set(
     trips.flatMap((t) => t.catches.map((c) => (c.flyPattern ?? '').toLowerCase()))
   ).size;
@@ -37,7 +38,7 @@ export default function ProfileScreen() {
   const stats = [
     { icon: 'calendar' as const, label: 'Total Trips', value: trips.length },
     { icon: 'water' as const, label: 'Rivers Fished', value: rivers.length },
-    { icon: 'fish' as const, label: 'Total Fish', value: totalFish },
+    { icon: 'flame' as const, label: 'Hot Flies', value: totalHot },
     { icon: 'bug' as const, label: 'Unique Flies', value: uniqueFlies },
   ];
 
